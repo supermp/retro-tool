@@ -16,8 +16,6 @@ import (
 const (
 	actInstall = iota
 	actGamelist
-
-	minGamelistDisplayTime = 3000 * time.Millisecond
 )
 
 type dirListMsg []install.DirInfo
@@ -28,7 +26,6 @@ type installDoneMsg install.InstallResult
 type installPlanErrMsg struct{ err error }
 type gamelistResultMsg struct{ r gamelist.Result }
 type gamelistDoneMsg struct{}
-type gamelistHoldMsg struct{}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -54,8 +51,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleGamelistResult(msg)
 	case gamelistDoneMsg:
 		return m.handleGamelistDone(msg)
-	case gamelistHoldMsg:
-		return m.handleGamelistHold()
 	default:
 		return m, nil
 	}
@@ -200,12 +195,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case scrGamelistProgress:
-		if key == "esc" {
-			if m.cancel != nil {
-				m.cancel()
-			} else {
-				m.screen = scrGamelistSummary
-			}
+		if key == "esc" && m.cancel != nil {
+			m.cancel()
 		}
 		return m, nil
 	case scrGamelistSummary:
@@ -307,27 +298,8 @@ func (m Model) handleGamelistResult(msg gamelistResultMsg) (tea.Model, tea.Cmd) 
 }
 
 func (m Model) handleGamelistDone(_ gamelistDoneMsg) (tea.Model, tea.Cmd) {
-	aborted := len(m.gamelist.results) < len(m.gamelist.dirNames)
 	m.cancel = nil
-	if aborted {
-		m.screen = scrGamelistSummary
-		return m, nil
-	}
-	wait := minGamelistDisplayTime - time.Since(m.gamelist.startedAt)
-	if wait > 0 {
-		return m, func() tea.Msg {
-			time.Sleep(wait)
-			return gamelistHoldMsg{}
-		}
-	}
 	m.screen = scrGamelistSummary
-	return m, nil
-}
-
-func (m Model) handleGamelistHold() (tea.Model, tea.Cmd) {
-	if m.screen == scrGamelistProgress {
-		m.screen = scrGamelistSummary
-	}
 	return m, nil
 }
 
