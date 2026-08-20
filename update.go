@@ -8,24 +8,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"retro-tool/internal/drives"
-	"retro-tool/internal/gamelist"
 	"retro-tool/internal/install"
 )
-
-const (
-	actInstall = iota
-	actGamelist
-)
-
-type dirListMsg []install.DirInfo
-type dirScanErrMsg struct{ err error }
-type driveListMsg []drives.Drive
-type installProgressMsg install.InstallProgress
-type installDoneMsg install.InstallResult
-type installPlanErrMsg struct{ err error }
-type gamelistResultMsg struct{ r gamelist.Result }
-type gamelistDoneMsg struct{}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -312,25 +296,6 @@ func moveSelectionIndex(current *int, total int, delta int) {
 	*current = newIdx
 }
 
-func (m *Model) selectedDirs() []install.DirInfo {
-	var out []install.DirInfo
-	for _, d := range m.dirs {
-		if m.checkedDirs[d.Name] {
-			out = append(out, d)
-		}
-	}
-	return out
-}
-
-func (m *Model) selectedNames() []string {
-	dirs := m.selectedDirs()
-	names := make([]string, len(dirs))
-	for i, d := range dirs {
-		names[i] = d.Name
-	}
-	return names
-}
-
 func (m *Model) beginGamelist(names []string) tea.Cmd {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
@@ -359,31 +324,4 @@ func (m *Model) beginInstall(dstRoot string, names []string) tea.Cmd {
 		nextMsgCmd(m.workerCh),
 		spinTickCmd(m.spin),
 	)
-}
-
-func (m *Model) restart() {
-	m.screen = scrDirSelect
-	m.checkedDirs = map[string]bool{}
-	m.dirIdx = 0
-	m.actionIdx = 0
-	m.screenErr = ""
-	m.resetInstallState()
-	m.resetGamelistState()
-	m.cancel = nil
-}
-
-func (m *Model) resetInstallState() {
-	m.install.started = time.Time{}
-	m.install.lastRateAt = time.Time{}
-	m.install.lastDoneBytes = 0
-	m.install.lastDoneFiles = 0
-	m.install.progress = install.InstallProgress{}
-	m.install.result = install.InstallResult{}
-}
-
-func (m *Model) resetGamelistState() {
-	m.gamelist.dirNames = nil
-	m.gamelist.currentIdx = 0
-	m.gamelist.startedAt = time.Time{}
-	m.gamelist.results = nil
 }

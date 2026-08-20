@@ -13,6 +13,15 @@ import (
 	"retro-tool/internal/install"
 )
 
+type dirListMsg []install.DirInfo
+type dirScanErrMsg struct{ err error }
+type driveListMsg []drives.Drive
+type installProgressMsg install.InstallProgress
+type installDoneMsg install.InstallResult
+type installPlanErrMsg struct{ err error }
+type gamelistResultMsg struct{ r gamelist.Result }
+type gamelistDoneMsg struct{}
+
 func scanDirsCmd(src string) tea.Cmd {
 	return func() tea.Msg {
 		ds, err := install.ScanDirs(src)

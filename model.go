@@ -13,6 +13,20 @@ import (
 	"retro-tool/internal/install"
 )
 
+type Screen int
+
+const (
+	scrDirSelect Screen = iota
+	scrActionSelect
+	scrInstallSystemSelect
+	scrInstallDriveSelect
+	scrInstallConfirm
+	scrInstallProgress
+	scrInstallSummary
+	scrGamelistProgress
+	scrGamelistSummary
+)
+
 type Model struct {
 	screen      Screen
 	width       int
@@ -78,4 +92,50 @@ func (m Model) Init() tea.Cmd {
 		rescanDrivesCmd(m.install.showFixedDrives),
 		spinTickCmd(m.spin),
 	)
+}
+
+func (m *Model) selectedDirs() []install.DirInfo {
+	var out []install.DirInfo
+	for _, d := range m.dirs {
+		if m.checkedDirs[d.Name] {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func (m *Model) selectedNames() []string {
+	dirs := m.selectedDirs()
+	names := make([]string, len(dirs))
+	for i, d := range dirs {
+		names[i] = d.Name
+	}
+	return names
+}
+
+func (m *Model) restart() {
+	m.screen = scrDirSelect
+	m.checkedDirs = map[string]bool{}
+	m.dirIdx = 0
+	m.actionIdx = 0
+	m.screenErr = ""
+	m.resetInstallState()
+	m.resetGamelistState()
+	m.cancel = nil
+}
+
+func (m *Model) resetInstallState() {
+	m.install.started = time.Time{}
+	m.install.lastRateAt = time.Time{}
+	m.install.lastDoneBytes = 0
+	m.install.lastDoneFiles = 0
+	m.install.progress = install.InstallProgress{}
+	m.install.result = install.InstallResult{}
+}
+
+func (m *Model) resetGamelistState() {
+	m.gamelist.dirNames = nil
+	m.gamelist.currentIdx = 0
+	m.gamelist.startedAt = time.Time{}
+	m.gamelist.results = nil
 }

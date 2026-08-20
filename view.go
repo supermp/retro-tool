@@ -14,25 +14,16 @@ import (
 	"retro-tool/internal/ui"
 )
 
-type Screen int
-
-const (
-	scrDirSelect Screen = iota
-	scrActionSelect
-	scrInstallSystemSelect
-	scrInstallDriveSelect
-	scrInstallConfirm
-	scrInstallProgress
-	scrInstallSummary
-	scrGamelistProgress
-	scrGamelistSummary
-)
-
 const (
 	maxFailWidth       = 34
 	maxDirWidth        = 20
 	maxDirColW         = 18
 	minShowFailuresNum = 5
+)
+
+const (
+	actInstall = iota
+	actGamelist
 )
 
 var styles = ui.DefaultStyles()
