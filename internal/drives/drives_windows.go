@@ -8,33 +8,6 @@ import (
 	"unsafe"
 )
 
-const (
-	driveUnknown   = 0
-	driveNoRoot    = 1
-	driveRemovable = 2
-	driveFixed     = 3
-	driveRemote    = 4
-	driveCDROM     = 5
-	driveRAMDisk   = 6
-)
-
-func (d Drive) IsRemovable() bool { return d.Type == driveRemovable }
-
-func (d Drive) TypeName() string {
-	switch d.Type {
-	case driveRemovable:
-		return "可移动磁盘"
-	case driveFixed:
-		return "本地磁盘"
-	case driveRemote:
-		return "网络驱动器"
-	case driveCDROM:
-		return "光驱"
-	default:
-		return "未知类型"
-	}
-}
-
 var (
 	kernel32              = syscall.NewLazyDLL("kernel32.dll")
 	pGetDriveType         = kernel32.NewProc("GetDriveTypeW")
@@ -73,9 +46,6 @@ func ListDrives(includeFixed bool) []Drive {
 		)
 		if nameBuf[0] != 0 {
 			d.Label = syscall.UTF16ToString(nameBuf)
-		}
-		if serial != 0 {
-			d.Serial = fmt.Sprintf("%08X", serial)
 		}
 
 		var freeAvail, total, totalFree uint64

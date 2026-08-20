@@ -1,4 +1,4 @@
-package tableview
+package ui
 
 import (
 	"strings"
@@ -6,19 +6,11 @@ import (
 	"charm.land/bubbles/v2/table"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-
-	"retro-tool/internal/tuiutil"
 )
 
-var (
-	Sub    = tuiutil.StyleSub
-	OK     = tuiutil.StyleOK
-	Err    = tuiutil.StyleErr
-	Normal = tuiutil.StyleNormal
-	Hint   = tuiutil.StyleHint
-)
+var tableHeaderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#87CEFA"))
 
-func Render(headers []string, caps []int, right []bool, rows [][]string) string {
+func RenderTable(headers []string, caps []int, right []bool, rows [][]string) string {
 	cols := len(headers)
 
 	widths := make([]int, cols)
@@ -78,7 +70,7 @@ func Render(headers []string, caps []int, right []bool, rows [][]string) string 
 		table.WithHeight(len(btRows)+1),
 		table.WithWidth(totalW),
 		table.WithStyles(table.Styles{
-			Header:   Sub.Padding(0, 1),
+			Header:   tableHeaderStyle.Padding(0, 1),
 			Cell:     lipgloss.NewStyle().Padding(0, 1),
 			Selected: lipgloss.NewStyle(),
 		}),

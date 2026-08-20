@@ -128,19 +128,19 @@ func transformRel(rule InstallRule, rel string) string {
 		if i < len(parts)-1 {
 			parts[i] = rule.DirName(p)
 		} else {
-			parts[i] = rule.FileName(p)
+			parts[i] = p
 		}
 	}
 	return filepath.Join(parts...)
 }
 
-type Throttle struct {
-	Interval time.Duration
+type throttle struct {
+	interval time.Duration
 	last     time.Time
 }
 
-func (t *Throttle) Allow(now time.Time) bool {
-	if now.Sub(t.last) >= t.Interval {
+func (t *throttle) allow(now time.Time) bool {
+	if now.Sub(t.last) >= t.interval {
 		t.last = now
 		return true
 	}
@@ -179,9 +179,9 @@ type InstallResult struct {
 }
 
 func NewInstaller(ctx context.Context, rule InstallRule, plans []planDir, emit func(InstallProgress)) *installer {
-	th := &Throttle{Interval: progressReportInterval}
+	th := &throttle{interval: progressReportInterval}
 	throttled := func(p InstallProgress) {
-		if th.Allow(time.Now()) {
+		if th.allow(time.Now()) {
 			emit(p)
 		}
 	}

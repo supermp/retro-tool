@@ -9,28 +9,6 @@ import (
 	"strings"
 )
 
-const (
-	gamelistReportStep = 30
-)
-
-type Game struct {
-	Path  string `xml:"path"`
-	Name  string `xml:"name"`
-	Image string `xml:"image"`
-}
-
-type Gamelist struct {
-	XMLName xml.Name `xml:"gameList"`
-	Games   []Game   `xml:"game"`
-}
-
-type Progress struct {
-	Current int
-	Total   int
-	Success int
-	Failed  int
-}
-
 type Result struct {
 	Dir     string
 	Total   int
@@ -39,37 +17,7 @@ type Result struct {
 	Skipped bool
 }
 
-func WriteGamelist(dir string, games []Game) error {
-	path := filepath.Join(dir, "gamelist.xml")
-
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	bw := bufio.NewWriter(f)
-	defer bw.Flush()
-
-	if _, err := bw.WriteString("<?xml version=\"1.0\"?>\n"); err != nil {
-		return err
-	}
-
-	enc := xml.NewEncoder(bw)
-	enc.Indent("", "\t")
-	if err := enc.Encode(Gamelist{Games: games}); err != nil {
-		return err
-	}
-	if err := enc.Flush(); err != nil {
-		return err
-	}
-	if _, err := bw.WriteString("\n"); err != nil {
-		return err
-	}
-	return bw.Flush()
-}
-
-func Generate(dir string, report func(Progress)) (Result, error) {
+func Generate(dir string) (Result, error) {
 	if isArcadeDir(dir) {
 		return Result{Skipped: true}, nil
 	}
@@ -103,16 +51,7 @@ func Generate(dir string, report func(Progress)) (Result, error) {
 	games := make([]Game, 0, total)
 	failed := make([]string, 0)
 
-	emit := func(current, success, failedCount int) {
-		if report != nil {
-			report(Progress{Current: current, Total: total, Success: success, Failed: failedCount})
-		}
-	}
-
-	emit(0, 0, 0)
-	lastReport := 0
-
-	for i, f := range files {
+	for _, f := range files {
 		name := f.Name()
 		ext := filepath.Ext(name)
 		base := strings.TrimSuffix(name, ext)
@@ -127,14 +66,9 @@ func Generate(dir string, report func(Progress)) (Result, error) {
 		} else {
 			failed = append(failed, name)
 		}
-		current := i + 1
-		if current == total || current-lastReport >= gamelistReportStep {
-			emit(current, len(games), len(failed))
-			lastReport = current
-		}
 	}
 
-	if err := WriteGamelist(dir, games); err != nil {
+	if err := writeGamelist(dir, games); err != nil {
 		return Result{}, fmt.Errorf("写入 Gamelist 失败: %w", err)
 	}
 
@@ -144,6 +78,47 @@ func Generate(dir string, report func(Progress)) (Result, error) {
 		Success: len(games),
 		Failed:  failed,
 	}, nil
+}
+
+type Game struct {
+	Path  string `xml:"path"`
+	Name  string `xml:"name"`
+	Image string `xml:"image"`
+}
+
+type Gamelist struct {
+	XMLName xml.Name `xml:"gameList"`
+	Games   []Game   `xml:"game"`
+}
+
+func writeGamelist(dir string, games []Game) error {
+	path := filepath.Join(dir, "gamelist.xml")
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	bw := bufio.NewWriter(f)
+	defer bw.Flush()
+
+	if _, err := bw.WriteString("<?xml version=\"1.0\"?>\n"); err != nil {
+		return err
+	}
+
+	enc := xml.NewEncoder(bw)
+	enc.Indent("", "\t")
+	if err := enc.Encode(Gamelist{Games: games}); err != nil {
+		return err
+	}
+	if err := enc.Flush(); err != nil {
+		return err
+	}
+	if _, err := bw.WriteString("\n"); err != nil {
+		return err
+	}
+	return bw.Flush()
 }
 
 func loadBoxartMap(dir string) (map[string]string, error) {

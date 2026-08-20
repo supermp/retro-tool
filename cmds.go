@@ -4,18 +4,13 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"retro-tool/internal/drives"
-	"retro-tool/pkg/gamelist"
-	"retro-tool/pkg/install"
-)
-
-const (
-	minGamelistDisplayTime = 3000 * time.Millisecond
+	"retro-tool/internal/gamelist"
+	"retro-tool/internal/install"
 )
 
 func scanDirsCmd(src string) tea.Cmd {
@@ -40,9 +35,8 @@ func spinTickCmd(s spinner.Model) tea.Cmd {
 	return func() tea.Msg { return s.Tick() }
 }
 
-func startInstallCmd(ctx context.Context, cancel context.CancelFunc, dstRoot string, m Model, names []string) tea.Cmd {
+func startInstallCmd(ctx context.Context, cancel context.CancelFunc, srcRoot, dstRoot string, rule install.InstallRule, names []string, ch chan tea.Msg) tea.Cmd {
 	return func() tea.Msg {
-		ch := m.workerCh
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -50,13 +44,13 @@ func startInstallCmd(ctx context.Context, cancel context.CancelFunc, dstRoot str
 					sendWorkerMsg(ch, installPlanErrMsg{err: fmt.Errorf("安装过程异常: %v", r)})
 				}
 			}()
-			plan, err := install.BuildPlan(m.srcRoot, dstRoot, m.install.sysRule, names)
+			plan, err := install.BuildPlan(srcRoot, dstRoot, rule, names)
 			if err != nil {
 				cancel()
 				sendWorkerMsg(ch, installPlanErrMsg{err})
 				return
 			}
-			installer := install.NewInstaller(ctx, m.install.sysRule, plan, func(p install.InstallProgress) {
+			installer := install.NewInstaller(ctx, rule, plan, func(p install.InstallProgress) {
 				sendWorkerMsg(ch, installProgressMsg(p))
 			})
 			res := installer.Run()
@@ -66,47 +60,20 @@ func startInstallCmd(ctx context.Context, cancel context.CancelFunc, dstRoot str
 	}
 }
 
-func startGamelistCmd(ctx context.Context, m Model, names []string) tea.Cmd {
+func startGamelistCmd(ctx context.Context, srcRoot string, names []string, ch chan tea.Msg) tea.Cmd {
 	return func() tea.Msg {
-		ch := m.workerCh
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
 					sendWorkerMsg(ch, gamelistResultMsg{r: gamelist.Result{Dir: "[错误]", Failed: []string{fmt.Sprintf("Gamelist 生成异常: %v", r)}}})
 				}
 			}()
-			deadline := time.Now().Add(minGamelistDisplayTime)
-			budget := func() time.Duration {
-				if d := time.Until(deadline); d > 0 {
-					return d
-				}
-				return 0
-			}
-			sleep := func(d time.Duration) bool {
-				select {
-				case <-time.After(d):
-					return true
-				case <-ctx.Done():
-					return false
-				}
-			}
-
-			completed := 0
-			onProgress := func(p gamelist.Progress) {
-				if p.Total > 0 && p.Current >= p.Total && completed < len(names) {
-					remaining := len(names) - completed
-					if remaining > 0 {
-						sleep(budget() / time.Duration(remaining))
-					}
-				}
-			}
 			for _, name := range names {
 				if err := ctx.Err(); err != nil {
 					break
 				}
-				dir := filepath.Join(m.srcRoot, name)
-				res, err := gamelist.Generate(dir, onProgress)
-				completed++
+				dir := filepath.Join(srcRoot, name)
+				res, err := gamelist.Generate(dir)
 				if err != nil {
 					res = gamelist.Result{Dir: name, Failed: []string{err.Error()}}
 				} else {
@@ -114,7 +81,6 @@ func startGamelistCmd(ctx context.Context, m Model, names []string) tea.Cmd {
 				}
 				sendWorkerMsg(ch, gamelistResultMsg{r: res})
 			}
-			sleep(budget())
 			sendWorkerMsg(ch, gamelistDoneMsg{})
 		}()
 		return nil
@@ -125,24 +91,17 @@ func sendWorkerMsg(ch chan tea.Msg, msg tea.Msg) {
 	if ch == nil {
 		return
 	}
-
+	select {
+	case ch <- msg:
+		return
+	default:
+	}
 	if _, isProgress := msg.(installProgressMsg); isProgress {
-		select {
-		case ch <- msg:
-		default:
-		}
 		return
 	}
-
-	for {
-		select {
-		case ch <- msg:
-			return
-		default:
-			select {
-			case <-ch:
-			case <-time.After(5 * time.Millisecond):
-			}
-		}
+	select {
+	case <-ch:
+	default:
 	}
+	ch <- msg
 }

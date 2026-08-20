@@ -9,11 +9,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/mattn/go-runewidth"
 
-	"retro-tool/internal/tableview"
-	"retro-tool/internal/textutil"
-	"retro-tool/internal/tuiutil"
-	"retro-tool/pkg/gamelist"
-	"retro-tool/pkg/install"
+	"retro-tool/internal/gamelist"
+	"retro-tool/internal/install"
+	"retro-tool/internal/ui"
 )
 
 type Screen int
@@ -37,7 +35,7 @@ const (
 	minShowFailuresNum = 5
 )
 
-var styles = tuiutil.DefaultStyles()
+var styles = ui.DefaultStyles()
 
 func actionNames() []string { return []string{"安装游戏", "生成 Gamelist"} }
 
@@ -79,10 +77,10 @@ func (m Model) View() tea.View {
 
 func (m Model) dirSelectView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "📁", "选择游戏目录", "空格切换，A 全选，Enter 确认"))
+	b.WriteString(ui.PageHeader(styles, "📁", "选择游戏目录", "空格切换，A 全选，Enter 确认"))
 	switch {
 	case !m.scanned:
-		b.WriteString(tuiutil.BoxedHint(styles, m.spin.View(), "正在载入游戏目录"))
+		b.WriteString(ui.BoxedHint(styles, m.spin.View(), "正在载入游戏目录"))
 		b.WriteString("\n\n")
 	case m.scanErr != nil:
 		scanMsg := "⚠ 扫描源目录失败: " + m.scanErr.Error()
@@ -101,7 +99,7 @@ func (m Model) dirSelectView() string {
 		if w := runewidth.StringWidth(d.Name); w > nameW {
 			nameW = w
 		}
-		sizeStrs[i] = textutil.HumanBytes(d.Bytes)
+		sizeStrs[i] = ui.HumanBytes(d.Bytes)
 		if w := runewidth.StringWidth(sizeStrs[i]); w > sizeW {
 			sizeW = w
 		}
@@ -118,8 +116,8 @@ func (m Model) dirSelectView() string {
 		if i == m.dirIdx {
 			cur = styles.Cursor.Render("> ")
 		}
-		name := markStyle.Render(textutil.PadRight(mark+" "+d.Name, cellW))
-		info := styles.Hint.Render(fmt.Sprintf("%10d 文件  %s", d.Files, textutil.PadLeft(sizeStrs[i], sizeW)))
+		name := markStyle.Render(ui.PadRight(mark+" "+d.Name, cellW))
+		info := styles.Hint.Render(fmt.Sprintf("%10d 文件  %s", d.Files, ui.PadLeft(sizeStrs[i], sizeW)))
 		fmt.Fprintf(&b, "%s%s%s\n", cur, name, info)
 	}
 
@@ -135,34 +133,34 @@ func (m Model) dirSelectView() string {
 	}
 	if m.scanned {
 		b.WriteString("\n")
-		b.WriteString(tuiutil.StatLine(styles, len(selected), len(m.dirs), textutil.HumanBytes(total)))
+		b.WriteString(ui.StatLine(styles, len(selected), len(m.dirs), ui.HumanBytes(total)))
 	}
 	return b.String()
 }
 
 func (m Model) actionSelectView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "👆", "选择操作", "Enter 确认，Esc 返回"))
+	b.WriteString(ui.PageHeader(styles, "👆", "选择操作", "Enter 确认，Esc 返回"))
 	items := actionNames()
-	b.WriteString(tuiutil.RenderMenu(styles, items, m.actionIdx, nil))
+	b.WriteString(ui.RenderMenu(styles, items, m.actionIdx))
 	return b.String()
 }
 
 func (m Model) installSystemSelectView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "📟", "选择系统类型", "Enter 确认，Esc 返回"))
+	b.WriteString(ui.PageHeader(styles, "📟", "选择系统类型", "Enter 确认，Esc 返回"))
 	systems := install.AllSystems()
 	items := make([]string, len(systems))
 	for i, s := range systems {
 		items[i] = string(s)
 	}
-	b.WriteString(tuiutil.RenderMenu(styles, items, m.install.sysIdx, nil))
+	b.WriteString(ui.RenderMenu(styles, items, m.install.sysIdx))
 	return b.String()
 }
 
 func (m Model) installDriveSelectView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "💾", "选择目标盘符", "Enter 确认，Esc 返回，R 重新扫描，F 显示全部磁盘"))
+	b.WriteString(ui.PageHeader(styles, "💾", "选择目标盘符", "Enter 确认，Esc 返回，R 重新扫描，F 显示全部磁盘"))
 	if len(m.install.drives) == 0 {
 		b.WriteString(styles.Err.Render("⚠ 未发现可移动磁盘"))
 		b.WriteString("\n")
@@ -186,7 +184,7 @@ func (m Model) installDriveSelectView() string {
 		typeName := d.TypeName()
 		cap := "（容量未知）"
 		if d.Total > 0 {
-			cap = fmt.Sprintf("（剩余 %s）", textutil.HumanBytes(d.Free))
+			cap = fmt.Sprintf("（剩余 %s）", ui.HumanBytes(d.Free))
 		}
 		rows[i] = driveRow{label: label, typeName: typeName, cap: cap, warn: !d.IsRemovable()}
 		if w := runewidth.StringWidth(label); w > labelW {
@@ -212,9 +210,9 @@ func (m Model) installDriveSelectView() string {
 		}
 		line := fmt.Sprintf("%s  %s  %s  %s",
 			styles.Normal.Bold(true).Render(d.Root),
-			textutil.PadRight("["+r.label+"]", labelW+2),
-			textutil.PadRight(r.typeName, typeW),
-			textutil.PadLeft(r.cap, capW),
+			ui.PadRight("["+r.label+"]", labelW+2),
+			ui.PadRight(r.typeName, typeW),
+			ui.PadLeft(r.cap, capW),
 		)
 		b.WriteString(cur)
 		b.WriteString(styles.Normal.Render(line))
@@ -226,8 +224,8 @@ func (m Model) installDriveSelectView() string {
 
 func (m Model) installConfirmView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "📦", "安装游戏确认", "Enter 确认，Esc 返回"))
-	b.WriteString(tuiutil.Field(styles, "系统类型", styles.Normal.Render(string(install.AllSystems()[m.install.sysIdx]))))
+	b.WriteString(ui.PageHeader(styles, "📦", "安装游戏确认", "Enter 确认，Esc 返回"))
+	b.WriteString(ui.Field(styles, "系统类型", styles.Normal.Render(string(install.AllSystems()[m.install.sysIdx]))))
 	b.WriteString("\n")
 
 	selected := m.selectedDirs()
@@ -242,11 +240,11 @@ func (m Model) installConfirmView() string {
 		if label == "" {
 			label = "无卷标"
 		}
-		driveVal := d.Root + "  [" + label + "]  " + d.TypeName() + "（剩余 " + textutil.HumanBytes(d.Free) + "）"
-		b.WriteString(tuiutil.Field(styles, "目标盘符", styles.Normal.Render(driveVal)))
+		driveVal := d.Root + "  [" + label + "]  " + d.TypeName() + "（剩余 " + ui.HumanBytes(d.Free) + "）"
+		b.WriteString(ui.Field(styles, "目标盘符", styles.Normal.Render(driveVal)))
 		b.WriteString("\n")
 		if d.Free > 0 && d.Free < totalBytes {
-			warnText := fmt.Sprintf("⚠ 警告: 目标剩余空间小于需要安装的 %s", textutil.HumanBytes(totalBytes))
+			warnText := fmt.Sprintf("⚠ 警告: 目标剩余空间小于需要安装的 %s", ui.HumanBytes(totalBytes))
 			b.WriteString(styles.Warn.Render(warnText))
 			b.WriteString("\n")
 		}
@@ -277,10 +275,6 @@ func dirsFiles(dirs []install.DirInfo) int64 {
 	return n
 }
 
-func (m Model) barView(frac float64) string {
-	return m.progressBar.ViewAs(frac)
-}
-
 func formatDir(rule install.InstallRule, name string) string {
 	if rule == nil {
 		return name
@@ -290,15 +284,15 @@ func formatDir(rule install.InstallRule, name string) string {
 
 func (m Model) installProgressView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "📤", "安装游戏中", "Esc 中止"))
+	b.WriteString(ui.PageHeader(styles, "📤", "安装游戏中", "Esc 中止"))
 	p := m.install.progress
 	if p.TotalBytes == 0 {
-		b.WriteString(tuiutil.BoxedHint(styles, m.spin.View(), "正在扫描游戏文件"))
+		b.WriteString(ui.BoxedHint(styles, m.spin.View(), "正在扫描游戏文件"))
 		b.WriteString("\n")
 		return b.String()
 	}
 	frac := float64(p.DoneBytes) / float64(p.TotalBytes)
-	bar := m.barView(frac)
+	bar := m.progressBar.ViewAs(frac)
 	b.WriteString(bar)
 	b.WriteString(" ")
 	b.WriteString(styles.Sub.Render(fmt.Sprintf("%5.1f%%", frac*100)))
@@ -314,10 +308,10 @@ func (m Model) installProgressView() string {
 		maxW := m.width - 6
 		if maxW > 10 {
 			if runewidth.StringWidth(srcLine) > maxW {
-				srcLine = textutil.Truncate(srcLine, maxW)
+				srcLine = ui.Truncate(srcLine, maxW)
 			}
 			if runewidth.StringWidth(dstLine) > maxW {
-				dstLine = textutil.Truncate(dstLine, maxW)
+				dstLine = ui.Truncate(dstLine, maxW)
 			}
 		}
 		b.WriteString(styles.Hint.Render("  " + srcLine))
@@ -334,7 +328,7 @@ func (m Model) installProgressView() string {
 
 func (m Model) installSummaryView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "📊", "安装游戏汇总", "Esc 返回"))
+	b.WriteString(ui.PageHeader(styles, "📊", "安装游戏汇总", "Esc 返回"))
 	r := m.install.result
 	errCount := len(r.Errors)
 	switch {
@@ -371,7 +365,7 @@ func (m Model) installSummaryView() string {
 
 func (m Model) gamelistProgressView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "🔍", "生成 Gamelist 中", "Esc 中止"))
+	b.WriteString(ui.PageHeader(styles, "🔍", "生成 Gamelist 中", "Esc 中止"))
 	total := len(m.gamelist.dirNames)
 	dir := ""
 	if m.gamelist.currentIdx < total {
@@ -382,10 +376,10 @@ func (m Model) gamelistProgressView() string {
 	if total > 0 {
 		frac = float64(n) / float64(total)
 	}
-	bar := m.barView(frac)
+	bar := m.progressBar.ViewAs(frac)
 	b.WriteString(bar)
 	b.WriteString("  ")
-	num := textutil.PadLeft(fmt.Sprint(n), len(fmt.Sprint(total)))
+	num := ui.PadLeft(fmt.Sprint(n), len(fmt.Sprint(total)))
 	b.WriteString(styles.Sub.Render(fmt.Sprintf("%s/%d", num, total)))
 	b.WriteString("\n\n")
 
@@ -395,7 +389,7 @@ func (m Model) gamelistProgressView() string {
 	}
 	b.WriteString(styles.Hint.Render("  " + status))
 	elapsed := time.Since(m.gamelist.startedAt).Round(time.Second)
-	right := textutil.PadLeft(elapsed.String(), 10)
+	right := ui.PadLeft(elapsed.String(), 10)
 	pad := m.width - 2 - runewidth.StringWidth(status) - runewidth.StringWidth(elapsed.String())
 	if pad > 0 {
 		b.WriteString(strings.Repeat(" ", pad))
@@ -407,7 +401,7 @@ func (m Model) gamelistProgressView() string {
 
 func (m Model) gamelistSummaryView() string {
 	var b strings.Builder
-	b.WriteString(tuiutil.PageHeader(styles, "📊", "生成 Gamelist 汇总", "Enter 重新生成，Esc 返回"))
+	b.WriteString(ui.PageHeader(styles, "📊", "生成 Gamelist 汇总", "Enter 重新生成，Esc 返回"))
 	if len(m.gamelist.results) < len(m.gamelist.dirNames) {
 		b.WriteString(styles.Err.Render("✘ 已中止"))
 		b.WriteString("\n\n")
@@ -429,50 +423,50 @@ func renderInstallStateTable(rows []dirStatCell, sumFiles, sumBytes int64) strin
 	for _, r := range rows {
 		tbl = append(tbl, []string{
 			r.Src, r.Dst,
-			tableview.Hint.Render(fmt.Sprint(r.Files)),
-			tableview.Hint.Render(textutil.HumanBytes(r.Bytes)),
+			styles.Hint.Render(fmt.Sprint(r.Files)),
+			styles.Hint.Render(ui.HumanBytes(r.Bytes)),
 		})
 	}
 	tbl = append(tbl, make([]string, len(headers)))
 	tbl = append(tbl, []string{
 		"合计", "",
-		tableview.Hint.Render(fmt.Sprint(sumFiles)),
-		tableview.Hint.Render(textutil.HumanBytes(sumBytes)),
+		styles.Hint.Render(fmt.Sprint(sumFiles)),
+		styles.Hint.Render(ui.HumanBytes(sumBytes)),
 	})
-	return tableview.Render(headers, caps, right, tbl)
+	return ui.RenderTable(headers, caps, right, tbl)
 }
 
 func renderInstallProgressTable(p install.InstallProgress) string {
-	sz := func(b int64) string { return textutil.HumanBytes(b) }
+	sz := func(b int64) string { return ui.HumanBytes(b) }
 	const (
 		colLabel = 10
 		colNum   = 10
 		colSpeed = 12
 	)
-	num := func(v int64) string { return textutil.PadLeft(fmt.Sprint(v), colNum) }
-	num2 := func(v int64) string { return textutil.PadLeft(sz(v), colNum) }
+	num := func(v int64) string { return ui.PadLeft(fmt.Sprint(v), colNum) }
+	num2 := func(v int64) string { return ui.PadLeft(sz(v), colNum) }
 	rate := fmt.Sprintf("%.0f 个/s", p.FilesPerSec)
 	speed := "--"
 	if p.SpeedBps > 0 {
-		speed = textutil.HumanBytes(int64(p.SpeedBps)) + "/s"
+		speed = ui.HumanBytes(int64(p.SpeedBps)) + "/s"
 	}
 	rows := [][]string{
 		{
-			textutil.PadRight("数量", colLabel),
-			tableview.Hint.Render(num(p.DoneFiles)),
-			tableview.Hint.Render(num(p.DirFiles)),
-			tableview.Hint.Render(num(p.TotalFiles)),
-			tableview.Hint.Render(textutil.PadLeft(rate, colSpeed)),
+			ui.PadRight("数量", colLabel),
+			styles.Hint.Render(num(p.DoneFiles)),
+			styles.Hint.Render(num(p.DirFiles)),
+			styles.Hint.Render(num(p.TotalFiles)),
+			styles.Hint.Render(ui.PadLeft(rate, colSpeed)),
 		},
 		{
-			textutil.PadRight("大小", colLabel),
-			tableview.Hint.Render(num2(p.DoneBytes)),
-			tableview.Hint.Render(num2(p.DirBytes)),
-			tableview.Hint.Render(num2(p.TotalBytes)),
-			tableview.Hint.Render(textutil.PadLeft(speed, colSpeed)),
+			ui.PadRight("大小", colLabel),
+			styles.Hint.Render(num2(p.DoneBytes)),
+			styles.Hint.Render(num2(p.DirBytes)),
+			styles.Hint.Render(num2(p.TotalBytes)),
+			styles.Hint.Render(ui.PadLeft(speed, colSpeed)),
 		},
 	}
-	return tableview.Render([]string{"", "已完成", "当前目录", "所有目录", "实时速度"},
+	return ui.RenderTable([]string{"", "已完成", "当前目录", "所有目录", "实时速度"},
 		[]int{colLabel, colNum, colNum, colNum, colSpeed},
 		[]bool{false, true, true, true, true}, rows)
 }
@@ -487,22 +481,22 @@ func renderGamelistTable(results []gamelist.Result) string {
 		if r.Skipped {
 			rows = append(rows, []string{
 				r.Dir, "-", "-",
-				tableview.Normal.Render("街机游戏，跳过"),
+				styles.Normal.Render("街机游戏，跳过"),
 			})
 			continue
 		}
 		errs := len(r.Failed) > 0
 		row := make([]string, len(headers))
 		row[0] = r.Dir
-		row[1] = tableview.Sub.Render(fmt.Sprint(r.Total))
-		row[2] = tableview.OK.Render(fmt.Sprint(r.Success))
+		row[1] = styles.Sub.Render(fmt.Sprint(r.Total))
+		row[2] = styles.OK.Render(fmt.Sprint(r.Success))
 		row[3] = formatFailedList(r.Failed, maxFailWidth)
 		if errs {
-			row[3] = tableview.Err.Render(row[3])
+			row[3] = styles.Err.Render(row[3])
 		}
 		rows = append(rows, row)
 	}
-	return tableview.Render(headers, caps, right, rows)
+	return ui.RenderTable(headers, caps, right, rows)
 }
 
 func formatFailedList(failed []string, maxWidth int) string {
@@ -529,7 +523,7 @@ func formatFailedList(failed []string, maxWidth int) string {
 		prefix += fmt.Sprintf(" +%d", total-showAtLeast)
 	}
 	if runewidth.StringWidth(prefix) > maxWidth {
-		return textutil.Truncate(prefix, maxWidth)
+		return ui.Truncate(prefix, maxWidth)
 	}
 	return prefix
 }

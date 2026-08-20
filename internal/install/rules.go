@@ -19,7 +19,6 @@ const anbernicRootDir = "Roms"
 
 type InstallRule interface {
 	DirName(src string) string
-	FileName(src string) string
 	PostProcess(dstDir string) error
 	RootDir(base string) string
 }
@@ -52,8 +51,6 @@ func (aurknixRule) DirName(src string) string {
 	}
 }
 
-func (aurknixRule) FileName(src string) string { return src }
-
 func (aurknixRule) PostProcess(dstDir string) error { return nil }
 
 func (aurknixRule) RootDir(base string) string { return base }
@@ -61,8 +58,6 @@ func (aurknixRule) RootDir(base string) string { return base }
 type anbernicRule struct{}
 
 func (anbernicRule) DirName(src string) string { return strings.ToUpper(src) }
-
-func (anbernicRule) FileName(src string) string { return src }
 
 func (anbernicRule) RootDir(base string) string { return filepath.Join(base, anbernicRootDir) }
 

@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"retro-tool/internal/drives"
-	"retro-tool/pkg/gamelist"
-	"retro-tool/pkg/install"
+	"retro-tool/internal/gamelist"
+	"retro-tool/internal/install"
 )
 
 type Model struct {
